@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nhập thông tin bệnh nhân</title>
+<style>
+  :root{
+    --bg:#f3f6f5; --card:#fff; --ink:#1d2b27; --muted:#5f716b; --line:#d7e0dd;
+    --brand:#0f7a5a; --brand-ink:#fff; --brand-soft:#e3f2ec; --err:#c0392b; --warn-bg:#fff6e0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  header{background:var(--brand);color:var(--brand-ink);padding:14px 16px;position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer}
+  main{max-width:860px;margin:0 auto;padding:16px 16px 110px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .card h2{font-size:15px;margin:0 0 12px;color:var(--brand);text-transform:uppercase;letter-spacing:.03em}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+  .c12{grid-column:span 12}.c6{grid-column:span 6}.c4{grid-column:span 4}.c8{grid-column:span 8}
+  @media (max-width:640px){.c6,.c4,.c8{grid-column:span 12}.half-m{grid-column:span 6}}
+  label{display:block;font-size:14px;color:var(--muted);margin-bottom:4px}
+  label .req{color:var(--err)}
+  input,textarea{width:100%;font:inherit;color:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  textarea{resize:vertical;min-height:44px}
+  input:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:-1px;border-color:var(--brand)}
+  .invalid{border-color:var(--err)!important;background:#fff5f4}
+  .drug{border:1px dashed var(--line);border-radius:10px;padding:12px;margin-top:12px}
+  .drug-title{font-weight:600;font-size:14px;margin-bottom:8px}
+  .settings{background:var(--warn-bg)}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .status{font-size:14px;margin-top:8px}
+  .ok{color:var(--brand)} .bad{color:var(--err)}
+  .row-btn{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btn{border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:600;cursor:pointer}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-ghost{background:var(--brand-soft);color:var(--brand)}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .actions{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;justify-content:center;z-index:5}
+  .actions .btn{flex:1;max-width:280px}
+  .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#1d2b27;color:#fff;padding:12px 16px;border-radius:10px;font-size:15px;max-width:calc(100% - 32px);display:none;z-index:10;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+  .toast.err{background:var(--err)}
+  .hidden{display:none}
+  header .hbtns{display:flex;gap:6px}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+  .modal.hidden{display:none}
+  .modal-box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:380px;text-align:center}
+  .modal-box h3{margin:0 0 4px;font-size:18px;color:var(--brand)}
+  .qr-img{width:100%;max-width:280px;aspect-ratio:1;margin:12px auto;display:block;image-rendering:pixelated;border:1px solid var(--line);border-radius:8px}
+  .qr-url{font-size:12px;color:var(--muted);word-break:break-all;margin:6px 0 10px}
+  .check{display:flex;gap:8px;align-items:flex-start;text-align:left;font-size:14px;color:var(--ink);margin:8px 0}
+  .check input{width:auto;margin-top:3px}
+  .modal-box .row-btn{justify-content:center}
+  .print-only{display:none}
+  @media print{
+    body *{visibility:hidden}
+    #qrModal,#qrModal *{visibility:visible}
+    #qrModal{position:absolute;inset:0;background:#fff}
+    #qrModal .no-print{display:none}
+    #qrModal .print-only{display:block;font-size:20px;font-weight:600}
+    .qr-img{max-width:12cm;border:0}
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>Nhập thông tin bệnh nhân</h1>
+  <div class="hbtns">
+    <button type="button" id="btnQr">▦ Mã QR</button>
+    <button type="button" id="btnToggleSettings">⚙ Cấu hình</button>
+  </div>
+</header>
+
+<!-- MÃ QR ĐỂ NGƯỜI NHẬP LIỆU QUÉT -->
+<div class="modal hidden" id="qrModal">
+  <div class="modal-box">
+    <h3>Quét mã để nhập liệu</h3>
+    <div class="print-only">NHẬP THÔNG TIN BỆNH NHÂN</div>
+    <img class="qr-img" id="qrImg" alt="Mã QR link nhập liệu">
+    <div class="qr-url" id="qrUrl"></div>
+    <div class="no-print" style="text-align:left">
+      <label for="qrAppUrl">Link ứng dụng web (chính thức)</label>
+      <input id="qrAppUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+      <div class="hint" id="qrAppHint">Lấy ở Apps Script → Triển khai → Quản lý triển khai → copy "URL ứng dụng web".</div>
+    </div>
+    <label class="check no-print"><input type="checkbox" id="qrWithSheet" checked>
+      <span>Kèm link Google Sheet: người quét không cần dán link, mở ra là nhập được ngay</span></label>
+    <div class="hint no-print">Mã QR không chứa mã truy cập. Trên điện thoại, nhấn giữ ảnh để lưu.</div>
+    <div class="row-btn no-print">
+      <button class="btn btn-ghost" type="button" id="btnQrClose">Đóng</button>
+      <button class="btn btn-primary" type="button" id="btnQrPrint">In mã QR</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <!-- CẤU HÌNH GOOGLE SHEET -->
+  <section class="card settings" id="settingsCard">
+    <h2>Google Sheet lưu dữ liệu</h2>
+    <div class="grid">
+      <div class="c12">
+        <label for="sheetUrl">Link Google Sheet <span class="req">*</span></label>
+        <input id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/..." autocomplete="off">
+        <div class="hint">Sheet phải được chia sẻ quyền <b>Người chỉnh sửa</b> cho tài khoản chạy ứng dụng. Dữ liệu ghi vào trang tính <b>BenhNhan</b>.</div>
+      </div>
+      <div class="c6 hidden" id="pinWrap">
+        <label for="pin">Mã truy cập <span class="req">*</span></label>
+        <input id="pin" type="password" autocomplete="off">
+      </div>
+    </div>
+    <div class="row-btn">
+      <button class="btn btn-ghost" type="button" id="btnTest">Lưu cấu hình &amp; kiểm tra</button>
+    </div>
+    <div class="status" id="connStatus"></div>
+  </section>
+
+  <form id="form" novalidate>
+    <!-- HÀNH CHÍNH -->
+    <section class="card">
+      <h2>Thông tin bệnh nhân</h2>
+      <div class="grid">
+        <div class="c8"><label for="hoTen">Họ tên <span class="req">*</span></label>
+          <input id="hoTen" name="hoTen" required autocomplete="off" style="text-transform:uppercase"></div>
+        <div class="c4 half-m"><label for="namSinh">Năm sinh</label>
+          <input id="namSinh" name="namSinh" type="number" inputmode="numeric" min="1900" placeholder="VD: 1965"></div>
+        <div class="c12"><label for="diaChi">Địa chỉ</label>
+          <input id="diaChi" name="diaChi" autocomplete="off"></div>
+        <div class="c6"><label for="soDienThoai">Số điện thoại</label>
+          <input id="soDienThoai" name="soDienThoai" type="tel" inputmode="tel" placeholder="VD: 0912345678"></div>
+        <div class="c6 half-m"><label for="canNang">Cân nặng (kg)</label>
+          <input id="canNang" name="canNang" type="number" inputmode="decimal" step="0.1" min="0"></div>
+      </div>
+    </section>
+
+    <!-- CHẨN ĐOÁN -->
+    <section class="card">
+      <h2>Chẩn đoán</h2>
+      <div class="grid">
+        <div class="c12"><label for="chanDoanChinh">Chẩn đoán chính</label>
+          <textarea id="chanDoanChinh" name="chanDoanChinh" rows="2"></textarea></div>
+        <div class="c12"><label for="chanDoanPhu">Chẩn đoán phụ</label>
+          <textarea id="chanDoanPhu" name="chanDoanPhu" rows="2"></textarea></div>
+      </div>
+    </section>
+
+    <!-- ĐƠN THUỐC -->
+    <section class="card">
+      <h2>Đơn thuốc</h2>
+      <div class="grid">
+        <div class="c4 half-m"><label for="soNgay">Số ngày đơn thuốc</label>
+          <input id="soNgay" name="soNgay" type="number" inputmode="numeric" min="1" max="365"></div>
+      </div>
+      <div id="drugs"></div>
+    </section>
+  </form>
+</main>
+
+<div class="actions">
+  <button class="btn btn-ghost" type="button" id="btnReset">Nhập mới</button>
+  <button class="btn btn-primary" type="button" id="btnSave">Lưu vào Google Sheet</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// Mở file HTML trực tiếp (không qua URL web app) → KHÔNG lưu được, báo rõ cho người dùng
+if (typeof google === 'undefined' || !google.script) {
+  var NOT_DEPLOYED = 'Đang mở file HTML trực tiếp nên KHÔNG lưu được. Hãy mở URL ứng dụng web (https://script.google.com/macros/s/.../exec).';
+  document.addEventListener('DOMContentLoaded', function(){
+    var b = document.createElement('div');
+    b.style.cssText = 'background:#c0392b;color:#fff;padding:10px 16px;font-size:14px;text-align:center';
+    b.textContent = '⚠ ' + NOT_DEPLOYED;
+    document.body.insertBefore(b, document.body.firstChild);
+  });
+  window.google = { script: { url: { getLocation: function(cb){ cb({ parameter: {} }); } }, run: (function mk(ok, fail){
+    var no = function(){ setTimeout(function(){ fail && fail(new Error(NOT_DEPLOYED)); }, 200); };
+    return {
+      withSuccessHandler: function(f){ return mk(f, fail); },
+      withFailureHandler: function(f){ return mk(ok, f); },
+      getConfig: function(){ setTimeout(function(){ ok && ok({ requirePin: false, appUrl: 'https://script.google.com/macros/s/DEMO/exec' }); }, 100); },
+      testConnection: no,
+      saveRecord: no
+    };
+  })() } };
+}
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var FIELDS = ['hoTen','namSinh','diaChi','soDienThoai','canNang','chanDoanChinh','chanDoanPhu','soNgay',
+                'thuoc1','hdsd1','thuoc2','hdsd2','thuoc3','hdsd3','thuoc4','hdsd4'];
+  var requirePin = false;
+
+  // Tạo 4 ô thuốc
+  var html = '';
+  for (var i = 1; i <= 4; i++) {
+    html += '<div class="drug"><div class="drug-title">Thuốc ' + i + '</div><div class="grid">' +
+      '<div class="c12"><label for="thuoc' + i + '">Tên thuốc ' + i + '</label>' +
+      '<input id="thuoc' + i + '" name="thuoc' + i + '" autocomplete="off"></div>' +
+      '<div class="c12"><label for="hdsd' + i + '">Hướng dẫn sử dụng</label>' +
+      '<textarea id="hdsd' + i + '" name="hdsd' + i + '" rows="2" placeholder="VD: Uống 1 viên x 2 lần/ngày, sau ăn"></textarea></div>' +
+      '</div></div>';
+  }
+  $('drugs').innerHTML = html;
+
+  // ---- Lưu cấu hình trên máy (chỉ link sheet, không lưu dữ liệu bệnh nhân) ----
+  function store(k, v){ try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch(e){ return null; } }
+  $('sheetUrl').value = store('bn_sheetUrl') || '';
+  $('pin').value = (function(){ try { return sessionStorage.getItem('bn_pin') || ''; } catch(e){ return ''; } })();
+
+  function settingsVisible(show){ $('settingsCard').classList.toggle('hidden', !show); }
+  settingsVisible(!$('sheetUrl').value);
+  $('btnToggleSettings').onclick = function(){ settingsVisible($('settingsCard').classList.contains('hidden')); };
+
+  // ---- Gọi server (Apps Script) ----
+  function call(fn, args){
+    return new Promise(function(resolve, reject){
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(function(e){
+        reject(new Error((e && e.message) ? e.message : String(e)));
+      })[fn].apply(null, args || []);
+    });
+  }
+
+  function toast(msg, isErr){
+    var t = $('toast'); t.textContent = msg; t.className = 'toast' + (isErr ? ' err' : '');
+    t.style.display = 'block'; clearTimeout(t._h);
+    t._h = setTimeout(function(){ t.style.display = 'none'; }, isErr ? 6000 : 3500);
+  }
+
+  function saveSettings(){
+    store('bn_sheetUrl', $('sheetUrl').value.trim());
+    try { sessionStorage.setItem('bn_pin', $('pin').value); } catch(e){}
+  }
+
+  // ---- Mã QR ----
+  var appUrl = '';
+  function qrLink(){
+    var u = $('qrAppUrl').value.trim(), s = $('sheetUrl').value.trim();
+    var m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/); // chỉ đưa ID vào QR → mã thưa, dễ quét
+    var id = m ? m[1] : (/^[a-zA-Z0-9-_]{25,}$/.test(s) ? s : '');
+    if ($('qrWithSheet').checked && id) u += (u.indexOf('?') < 0 ? '?' : '&') + 'sheet=' + id;
+    return u;
+  }
+  function renderQr(){
+    var u = $('qrAppUrl').value.trim();
+    var okUrl = /^https:\/\/script\.google\.com\/(a\/[^\/]+\/)?macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u);
+    $('qrAppUrl').classList.toggle('invalid', !okUrl);
+    $('qrAppHint').className = 'hint' + (okUrl ? '' : ' bad');
+    if (!okUrl) { $('qrImg').removeAttribute('src'); $('qrUrl').textContent = 'Link phải có dạng https://script.google.com/macros/s/.../exec'; return; }
+    var link = qrLink();
+    $('qrUrl').textContent = link;
+    if (typeof qrcode === 'undefined') { $('qrUrl').textContent = 'Không tải được thư viện QR (kiểm tra mạng). Link: ' + link; return; }
+    var q = qrcode(0, 'M'); q.addData(link); q.make();
+    $('qrImg').src = q.createDataURL(8, 16);
+  }
+  $('btnQr').onclick = function(){
+    $('qrAppUrl').value = store('bn_appUrl') || appUrl;
+    $('qrWithSheet').disabled = !$('sheetUrl').value.trim();
+    if ($('qrWithSheet').disabled) $('qrWithSheet').checked = false;
+    renderQr(); $('qrModal').classList.remove('hidden');
+  };
+  $('qrWithSheet').onchange = renderQr;
+  $('qrAppUrl').oninput = function(){ store('bn_appUrl', this.value.trim()); renderQr(); };
+  $('btnQrClose').onclick = function(){ $('qrModal').classList.add('hidden'); };
+  $('qrModal').onclick = function(e){ if (e.target === this) this.classList.add('hidden'); };
+  $('btnQrPrint').onclick = function(){ window.print(); };
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') $('qrModal').classList.add('hidden'); });
+
+  // Mở từ mã QR có kèm ?sheet=... → tự điền link Google Sheet
+  try {
+    google.script.url.getLocation(function(loc){
+      var s = loc && loc.parameter && loc.parameter.sheet;
+      if (s && /^[a-zA-Z0-9-_]{25,}$/.test(s)) s = 'https://docs.google.com/spreadsheets/d/' + s + '/edit';
+      if (s && /\/spreadsheets\/d\//.test(s)) {
+        $('sheetUrl').value = s; store('bn_sheetUrl', s);
+        if (!(requirePin && !$('pin').value)) settingsVisible(false);
+      }
+    });
+  } catch(e){}
+
+  call('getConfig').then(function(cfg){
+    requirePin = cfg.requirePin;
+    appUrl = cfg.appUrl || '';
+    $('pinWrap').classList.toggle('hidden', !requirePin);
+    if (requirePin && !$('pin').value) settingsVisible(true);
+  }).catch(function(){});
+
+  $('btnTest').onclick = function(){
+    var b = this, st = $('connStatus');
+    saveSettings();
+    if (!$('sheetUrl').value.trim()) { st.className = 'status bad'; st.textContent = 'Chưa dán link Google Sheet.'; return; }
+    b.disabled = true; st.className = 'status'; st.textContent = 'Đang kiểm tra...';
+    call('testConnection', [$('sheetUrl').value.trim(), $('pin').value]).then(function(name){
+      st.className = 'status ok'; st.textContent = '✓ Kết nối thành công: ' + name;
+      setTimeout(function(){ settingsVisible(false); }, 1200);
+    }).catch(function(e){
+      st.className = 'status bad'; st.textContent = '✗ ' + e.message;
+    }).then(function(){ b.disabled = false; });
+  };
+
+  // ---- Kiểm tra dữ liệu ----
+  function validate(d){
+    var errs = [], bad = [];
+    FIELDS.forEach(function(f){ $(f).classList.remove('invalid'); });
+    if (!d.hoTen) { errs.push('Chưa nhập Họ tên'); bad.push('hoTen'); }
+    var y = new Date().getFullYear();
+    if (d.namSinh && (!/^\d{4}$/.test(d.namSinh) || +d.namSinh < 1900 || +d.namSinh > y)) { errs.push('Năm sinh không hợp lệ'); bad.push('namSinh'); }
+    if (d.soDienThoai && !/^(\+84|0)\d{9,10}$/.test(d.soDienThoai.replace(/[\s.]/g,''))) { errs.push('Số điện thoại không hợp lệ'); bad.push('soDienThoai'); }
+    if (d.canNang && (isNaN(+d.canNang) || +d.canNang <= 0 || +d.canNang > 300)) { errs.push('Cân nặng không hợp lệ'); bad.push('canNang'); }
+    if (d.soNgay && (!/^\d+$/.test(d.soNgay) || +d.soNgay < 1 || +d.soNgay > 365)) { errs.push('Số ngày đơn thuốc không hợp lệ'); bad.push('soNgay'); }
+    bad.forEach(function(f){ $(f).classList.add('invalid'); });
+    if (bad.length) $(bad[0]).focus();
+    return errs;
+  }
+
+  function collect(){
+    var d = {};
+    FIELDS.forEach(function(f){ d[f] = $(f).value.trim(); });
+    d.hoTen = d.hoTen.toUpperCase();
+    return d;
+  }
+
+  function resetForm(){
+    $('form').reset();
+    FIELDS.forEach(function(f){ $(f).classList.remove('invalid'); });
+    window.scrollTo(0, 0); $('hoTen').focus();
+  }
+
+  $('btnReset').onclick = function(){
+    if (FIELDS.some(function(f){ return $(f).value.trim(); }) && !confirm('Xóa dữ liệu đang nhập để nhập bệnh nhân mới?')) return;
+    resetForm();
+  };
+
+  $('btnSave').onclick = function(){
+    var b = this;
+    var url = $('sheetUrl').value.trim();
+    if (!url) { settingsVisible(true); toast('Hãy dán link Google Sheet trước khi lưu.', true); $('sheetUrl').focus(); return; }
+    if (requirePin && !$('pin').value) { settingsVisible(true); toast('Hãy nhập mã truy cập.', true); $('pin').focus(); return; }
+    var d = collect();
+    var errs = validate(d);
+    if (errs.length) { toast(errs.join(' • '), true); return; }
+    b.disabled = true; b.textContent = 'Đang lưu...';
+    call('saveRecord', [url, $('pin').value, d]).then(function(r){
+      toast('✓ Đã lưu bệnh nhân ' + d.hoTen + ' (dòng ' + r.row + ')');
+      resetForm();
+    }).catch(function(e){
+      toast('Lưu thất bại: ' + e.message, true);
+    }).then(function(){ b.disabled = false; b.textContent = 'Lưu vào Google Sheet'; });
+  };
+})();
+</script>
+</body>
+</html>
