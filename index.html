@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f7a5a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Nhập thông tin bệnh nhân</title>
+<script>
+  /* ====== CẤU HÌNH: dán link Apps Script (/exec) vào đây trước khi đưa lên GitHub Pages ====== */
+  var API_URL = '';
+  /* ========================================================================================== */
+</script>
+<style>
+  :root{
+    --bg:#f3f6f5; --card:#fff; --ink:#1d2b27; --muted:#5f716b; --line:#d7e0dd;
+    --brand:#0f7a5a; --brand-ink:#fff; --brand-soft:#e3f2ec; --err:#c0392b; --warn-bg:#fff6e0; --rec:#d93025;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  header{background:var(--brand);color:var(--brand-ink);padding:14px 16px;position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  header .hbtns{display:flex;gap:6px}
+  header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer;white-space:nowrap}
+  @media (max-width:420px){header{padding:12px}header h1{font-size:16px}header button{padding:7px 9px;font-size:13px}}
+  main{max-width:860px;margin:0 auto;padding:16px 16px 110px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .card h2{font-size:15px;margin:0 0 12px;color:var(--brand);text-transform:uppercase;letter-spacing:.03em}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+  .c12{grid-column:span 12}.c6{grid-column:span 6}.c4{grid-column:span 4}.c8{grid-column:span 8}
+  @media (max-width:640px){.c6,.c4,.c8{grid-column:span 12}.half-m{grid-column:span 6}}
+  label{display:block;font-size:14px;color:var(--muted);margin-bottom:4px}
+  label .req{color:var(--err)}
+  input,textarea{width:100%;font:inherit;color:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  textarea{resize:vertical;min-height:44px}
+  input:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:-1px;border-color:var(--brand)}
+  .invalid{border-color:var(--err)!important;background:#fff5f4}
+  /* Ô có nút micro */
+  .vf{position:relative}
+  .vf input,.vf textarea{padding-right:52px}
+  .mic{position:absolute;right:4px;top:4px;width:40px;height:38px;border:0;border-radius:8px;background:var(--brand-soft);color:var(--brand);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .mic svg{width:20px;height:20px}
+  .mic.on{background:var(--rec);color:#fff;animation:pulse 1.1s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,48,37,.5)}70%{box-shadow:0 0 0 10px rgba(217,48,37,0)}100%{box-shadow:0 0 0 0 rgba(217,48,37,0)}}
+  .no-voice .mic{display:none}
+  .no-voice .vf input,.no-voice .vf textarea{padding-right:12px}
+  .voice-note{font-size:13px;color:var(--muted);background:var(--brand-soft);border-radius:8px;padding:8px 12px;margin-bottom:14px}
+  .drug{border:1px dashed var(--line);border-radius:10px;padding:12px;margin-top:12px}
+  .drug-title{font-weight:600;font-size:14px;margin-bottom:8px}
+  .settings{background:var(--warn-bg)}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .status{font-size:14px;margin-top:8px}
+  .ok{color:var(--brand)} .bad{color:var(--err)}
+  .row-btn{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btn{border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:600;cursor:pointer}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-ghost{background:var(--brand-soft);color:var(--brand)}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .actions{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;justify-content:center;z-index:5}
+  .actions .btn{flex:1;max-width:280px}
+  .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#1d2b27;color:#fff;padding:12px 16px;border-radius:10px;font-size:15px;max-width:calc(100% - 32px);display:none;z-index:30;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+  .toast.err{background:var(--err)}
+  .hidden{display:none}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+  .modal.hidden{display:none}
+  .modal-box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:380px;text-align:center}
+  .modal-box h3{margin:0 0 4px;font-size:18px;color:var(--brand)}
+  .qr-img{width:100%;max-width:280px;aspect-ratio:1;margin:12px auto;display:block;image-rendering:pixelated;border:1px solid var(--line);border-radius:8px}
+  .qr-url{font-size:12px;color:var(--muted);word-break:break-all;margin:6px 0 10px}
+  .check{display:flex;gap:8px;align-items:flex-start;text-align:left;font-size:14px;color:var(--ink);margin:8px 0}
+  .check input{width:auto;margin-top:3px}
+  .modal-box .row-btn{justify-content:center}
+  .print-only{display:none}
+  @media print{
+    body *{visibility:hidden}
+    #qrModal,#qrModal *{visibility:visible}
+    #qrModal{position:absolute;inset:0;background:#fff}
+    #qrModal .no-print{display:none}
+    #qrModal .print-only{display:block;font-size:20px;font-weight:600}
+    .qr-img{max-width:12cm;border:0}
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>Nhập thông tin bệnh nhân</h1>
+  <div class="hbtns">
+    <button type="button" id="btnQr">▦ Mã QR</button>
+    <button type="button" id="btnToggleSettings">⚙ Cấu hình</button>
+  </div>
+</header>
+
+<div class="modal hidden" id="qrModal">
+  <div class="modal-box">
+    <h3>Quét mã để nhập liệu</h3>
+    <div class="print-only">NHẬP THÔNG TIN BỆNH NHÂN</div>
+    <img class="qr-img" id="qrImg" alt="Mã QR link nhập liệu">
+    <div class="qr-url" id="qrUrl"></div>
+    <label class="check no-print"><input type="checkbox" id="qrWithSheet" checked>
+      <span>Kèm link Google Sheet: người quét không cần dán link, mở ra là nhập được ngay</span></label>
+    <div class="hint no-print">Mã QR không chứa mã truy cập. Trên điện thoại, nhấn giữ ảnh để lưu.</div>
+    <div class="row-btn no-print">
+      <button class="btn btn-ghost" type="button" id="btnQrClose">Đóng</button>
+      <button class="btn btn-primary" type="button" id="btnQrPrint">In mã QR</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <section class="card settings" id="settingsCard">
+    <h2>Cấu hình lưu dữ liệu</h2>
+    <div class="grid">
+      <div class="c12 hidden" id="apiWrap">
+        <label for="apiUrl">Link Apps Script (/exec) <span class="req">*</span></label>
+        <input id="apiUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+        <div class="hint">Lấy ở Apps Script → Triển khai → Quản lý triển khai. Có thể ghi cố định vào biến API_URL trong file để khỏi nhập.</div>
+      </div>
+      <div class="c12">
+        <label for="sheetUrl">Link Google Sheet <span class="req">*</span></label>
+        <input id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/..." autocomplete="off">
+        <div class="hint">Sheet phải được chia sẻ quyền <b>Người chỉnh sửa</b> cho tài khoản chạy Apps Script.</div>
+      </div>
+      <div class="c6 hidden" id="pinWrap">
+        <label for="pin">Mã truy cập <span class="req">*</span></label>
+        <input id="pin" type="password" autocomplete="off">
+      </div>
+    </div>
+    <div class="row-btn">
+      <button class="btn btn-ghost" type="button" id="btnTest">Lưu cấu hình &amp; kiểm tra</button>
+    </div>
+    <div class="status" id="connStatus"></div>
+  </section>
+
+  <div class="voice-note" id="voiceNote">🎤 Bấm nút micro cạnh mỗi ô rồi nói. Bấm lần nữa để dừng. Số (năm sinh, điện thoại, cân nặng, số ngày) được tự đổi thành chữ số.</div>
+
+  <form id="form" novalidate>
+    <section class="card">
+      <h2>Thông tin bệnh nhân</h2>
+      <div class="grid">
+        <div class="c8"><label for="hoTen">Họ tên <span class="req">*</span></label>
+          <div class="vf"><input id="hoTen" required autocomplete="off" style="text-transform:uppercase"></div></div>
+        <div class="c4 half-m"><label for="namSinh">Năm sinh</label>
+          <div class="vf" data-num="int"><input id="namSinh" type="text" inputmode="numeric" placeholder="VD: 1965"></div></div>
+        <div class="c12"><label for="diaChi">Địa chỉ</label>
+          <div class="vf"><input id="diaChi" autocomplete="off"></div></div>
+        <div class="c6"><label for="soDienThoai">Số điện thoại</label>
+          <div class="vf" data-num="digits"><input id="soDienThoai" type="tel" inputmode="tel" placeholder="VD: 0912345678"></div></div>
+        <div class="c6 half-m"><label for="canNang">Cân nặng (kg)</label>
+          <div class="vf" data-num="decimal"><input id="canNang" type="text" inputmode="decimal"></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Chẩn đoán</h2>
+      <div class="grid">
+        <div class="c12"><label for="chanDoanChinh">Chẩn đoán chính</label>
+          <div class="vf"><textarea id="chanDoanChinh" rows="2"></textarea></div></div>
+        <div class="c12"><label for="chanDoanPhu">Chẩn đoán phụ</label>
+          <div class="vf"><textarea id="chanDoanPhu" rows="2"></textarea></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Đơn thuốc</h2>
+      <div class="grid">
+        <div class="c4 half-m"><label for="soNgay">Số ngày đơn thuốc</label>
+          <div class="vf" data-num="int"><input id="soNgay" type="text" inputmode="numeric"></div></div>
+      </div>
+      <div id="drugs"></div>
+    </section>
+  </form>
+</main>
+
+<div class="actions">
+  <button class="btn btn-ghost" type="button" id="btnReset">Nhập mới</button>
+  <button class="btn btn-primary" type="button" id="btnSave">Lưu vào Google Sheet</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var FIELDS = ['hoTen','namSinh','diaChi','soDienThoai','canNang','chanDoanChinh','chanDoanPhu','soNgay',
+                'thuoc1','hdsd1','thuoc2','hdsd2','thuoc3','hdsd3','thuoc4','hdsd4'];
+  var requirePin = false;
+
+  // ---- 4 ô thuốc ----
+  var html = '';
+  for (var i = 1; i <= 4; i++) {
+    html += '<div class="drug"><div class="drug-title">Thuốc ' + i + '</div><div class="grid">' +
+      '<div class="c12"><label for="thuoc' + i + '">Tên thuốc ' + i + '</label>' +
+      '<div class="vf"><input id="thuoc' + i + '" autocomplete="off"></div></div>' +
+      '<div class="c12"><label for="hdsd' + i + '">Hướng dẫn sử dụng</label>' +
+      '<div class="vf"><textarea id="hdsd' + i + '" rows="2" placeholder="VD: Uống 1 viên x 2 lần/ngày, sau ăn"></textarea></div></div>' +
+      '</div></div>';
+  }
+  $('drugs').innerHTML = html;
+
+  // ---- Lưu trữ trên máy (chỉ cấu hình, không lưu dữ liệu bệnh nhân) ----
+  function store(k, v){ try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch(e){ return null; } }
+  function sstore(k, v){ try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch(e){ return null; } }
+
+  if (!API_URL) $('apiWrap').classList.remove('hidden');
+  $('apiUrl').value = store('bn_apiUrl') || '';
+  $('sheetUrl').value = store('bn_sheetUrl') || '';
+  $('pin').value = sstore('bn_pin') || '';
+
+  // Mở từ mã QR có ?sheet=<ID> → tự điền link Sheet
+  try {
+    var qs = new URLSearchParams(location.search).get('sheet');
+    if (qs && /^[a-zA-Z0-9-_]{25,}$/.test(qs)) {
+      $('sheetUrl').value = 'https://docs.google.com/spreadsheets/d/' + qs + '/edit';
+      store('bn_sheetUrl', $('sheetUrl').value);
+    }
+  } catch(e){}
+
+  function getApi(){ return API_URL || $('apiUrl').value.trim(); }
+  function settingsVisible(show){ $('settingsCard').classList.toggle('hidden', !show); }
+  settingsVisible(!$('sheetUrl').value || !getApi());
+  $('btnToggleSettings').onclick = function(){ settingsVisible($('settingsCard').classList.contains('hidden')); };
+
+  function toast(msg, isErr){
+    var t = $('toast'); t.textContent = msg; t.className = 'toast' + (isErr ? ' err' : '');
+    t.style.display = 'block'; clearTimeout(t._h);
+    t._h = setTimeout(function(){ t.style.display = 'none'; }, isErr ? 6000 : 3500);
+  }
+
+  // ---- Gọi Apps Script (doPost) ----
+  function call(action, payload){
+    var api = getApi();
+    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(api)) {
+      settingsVisible(true);
+      return Promise.reject(new Error('Chưa cấu hình đúng link Apps Script (/exec).'));
+    }
+    var body = { action: action };
+    for (var k in (payload || {})) body[k] = payload[k];
+    return fetch(api, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // tránh CORS preflight
+      body: JSON.stringify(body),
+      redirect: 'follow'
+    }).catch(function(){
+      throw new Error('Không kết nối được Apps Script. Kiểm tra mạng và quyền truy cập "Bất kỳ ai".');
+    }).then(function(r){
+      return r.text().then(function(t){
+        try { return JSON.parse(t); }
+        catch(e){ throw new Error('Apps Script chưa có bản mới (thiếu doPost). Hãy dán Code.gs mới và triển khai Phiên bản mới.'); }
+      });
+    }).then(function(j){
+      if (!j.ok) throw new Error(j.error || 'Lỗi không xác định.');
+      return j.data;
+    });
+  }
+
+  function saveSettings(){
+    store('bn_apiUrl', $('apiUrl').value.trim());
+    store('bn_sheetUrl', $('sheetUrl').value.trim());
+    sstore('bn_pin', $('pin').value);
+  }
+
+  function loadConfig(){
+    if (!getApi()) return;
+    call('getConfig').then(function(cfg){
+      requirePin = cfg.requirePin;
+      $('pinWrap').classList.toggle('hidden', !requirePin);
+      if (requirePin && !$('pin').value) settingsVisible(true);
+    }).catch(function(){});
+  }
+  loadConfig();
+
+  $('btnTest').onclick = function(){
+    var b = this, st = $('connStatus');
+    saveSettings();
+    if (!$('sheetUrl').value.trim()) { st.className = 'status bad'; st.textContent = 'Chưa dán link Google Sheet.'; return; }
+    b.disabled = true; st.className = 'status'; st.textContent = 'Đang kiểm tra...';
+    call('getConfig').then(function(cfg){
+      requirePin = cfg.requirePin;
+      $('pinWrap').classList.toggle('hidden', !requirePin);
+      if (requirePin && !$('pin').value) throw new Error('Hãy nhập mã truy cập.');
+      return call('testConnection', { sheetUrl: $('sheetUrl').value.trim(), pin: $('pin').value });
+    }).then(function(msg){
+      st.className = 'status ok'; st.textContent = '✓ Kết nối thành công: ' + msg;
+      setTimeout(function(){ settingsVisible(false); }, 1200);
+    }).catch(function(e){
+      st.className = 'status bad'; st.textContent = '✗ ' + e.message;
+    }).then(function(){ b.disabled = false; });
+  };
+
+  // =================== NHẬP BẰNG GIỌNG NÓI ===================
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var MIC_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>';
+  var rec = null, recBtn = null;
+
+  if (!SR) {
+    document.body.classList.add('no-voice');
+    $('voiceNote').textContent = '🎤 Trình duyệt này chưa hỗ trợ nhập giọng nói. Hãy dùng Chrome (Android/máy tính) hoặc Safari (iPhone), hoặc bấm micro trên bàn phím điện thoại.';
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.vf'), function(w){
+    var el = w.querySelector('input,textarea');
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'mic'; b.innerHTML = MIC_SVG;
+    b.title = 'Nhập bằng giọng nói'; b.setAttribute('aria-label', 'Nhập bằng giọng nói cho ô ' + el.id);
+    b.onclick = function(){ toggleVoice(el, w.getAttribute('data-num'), b); };
+    w.appendChild(b);
+  });
+
+  function stopVoice(){ if (rec) { try { rec.stop(); } catch(e){} } }
+
+  function toggleVoice(el, numMode, btn){
+    if (rec) { var same = recBtn === btn; stopVoice(); if (same) return; }
+    var r = new SR();
+    r.lang = 'vi-VN'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+    var base = el.value.trim(), finalText = '';
+    rec = r; recBtn = btn; btn.classList.add('on'); el.focus();
+
+    r.onresult = function(ev){
+      var interim = '';
+      for (var i = ev.resultIndex; i < ev.results.length; i++) {
+        var t = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += t; else interim += t;
+      }
+      // Ô chữ: hiện chữ ngay khi đang nói (nối tiếp nội dung cũ)
+      if (!numMode) el.value = joinText(base, (finalText + ' ' + interim).trim());
+    };
+    r.onerror = function(ev){
+      var m = { 'not-allowed': 'Chưa cho phép dùng micro. Hãy bấm biểu tượng 🔒 cạnh địa chỉ web → cho phép Micro.',
+                'service-not-allowed': 'Trình duyệt không cho phép nhận dạng giọng nói trên trang này.',
+                'no-speech': 'Không nghe thấy tiếng nói, hãy thử lại.',
+                'audio-capture': 'Không tìm thấy micro trên thiết bị.',
+                'network': 'Nhận dạng giọng nói cần kết nối mạng.' }[ev.error];
+      if (m) toast(m, true);
+    };
+    r.onend = function(){
+      btn.classList.remove('on');
+      if (rec === r) { rec = null; recBtn = null; }
+      var said = finalText.trim();
+      if (!said) return;
+      if (numMode) {
+        var v = viNumber(said, numMode);
+        if (v === '') toast('Không nhận ra số trong: "' + said + '"', true);
+        else { el.value = v; el.classList.remove('invalid'); }
+      } else {
+        el.value = joinText(base, said);
+      }
+    };
+    try { r.start(); } catch(e){ btn.classList.remove('on'); rec = null; toast('Không bật được micro: ' + e.message, true); }
+  }
+
+  function joinText(a, b){
+    b = (b || '').trim();
+    if (!b) return a;
+    b = b.charAt(0).toUpperCase() + b.slice(1);
+    return a ? a + ' ' + b : b;
+  }
+
+  // ---- Đổi lời nói tiếng Việt thành số ----
+  // mode: 'digits' (điện thoại: đọc từng số), 'int' (năm sinh, số ngày), 'decimal' (cân nặng)
+  var DIG = { 'không':0,'linh':-1,'lẻ':-1,'một':1,'mốt':1,'hai':2,'ba':3,'bốn':4,'tư':4,'năm':5,'lăm':5,'nhăm':5,
+              'sáu':6,'bảy':7,'bẩy':7,'tám':8,'chín':9 };
+  function words(s){ return s.toLowerCase().normalize('NFC').replace(/[^0-9a-zà-ỹđ+.,\s]/g, ' ').split(/\s+/).filter(Boolean); }
+
+  function viInt(s){
+    var ws = words(s);
+    // Có sẵn chữ số (Chrome thường tự đổi) → lấy chữ số
+    if (/\d/.test(s)) return s.replace(/\D/g, '');
+    var hasScale = ws.some(function(w){ return /^(mười|mươi|trăm|nghìn|ngàn)$/.test(w); });
+    if (!hasScale) { // đọc từng chữ số: "một chín sáu lăm" → 1965
+      return ws.map(function(w){ var d = DIG[w]; return d >= 0 ? String(d) : ''; }).join('');
+    }
+    var total = 0, cur = 0, last = 0, any = false;
+    ws.forEach(function(w){
+      if (DIG[w] >= 0) { cur += DIG[w]; last = DIG[w]; any = true; }
+      else if (w === 'mười') { cur += 10; last = 0; any = true; }
+      else if (w === 'mươi') { cur = cur - last + last * 10; last = 0; }
+      else if (w === 'trăm') { cur = cur - last + last * 100; last = 0; }
+      else if (w === 'nghìn' || w === 'ngàn') { total += (cur || 1) * 1000; cur = 0; last = 0; any = true; }
+    });
+    return any ? String(total + cur) : '';
+  }
+
+  function viNumber(s, mode){
+    s = s.trim();
+    if (mode === 'digits') {
+      var plus = /^\s*(\+|cộng)/i.test(s) ? '+' : '';
+      var out = words(s).map(function(w){
+        if (/^\d+$/.test(w)) return w;
+        var d = DIG[w]; return d >= 0 ? String(d) : '';
+      }).join('');
+      return out ? plus + out : '';
+    }
+    if (mode === 'int') {
+      // "sinh năm một chín sáu lăm" → bỏ "sinh năm"; nhưng giữ "năm mươi lăm" (55), "năm ngày" (5)
+      var ws = words(s);
+      if (ws[0] === 'sinh') ws.shift();
+      if (ws[0] === 'năm' && ws.length >= 3 && DIG[ws[1]] >= 0) ws.shift();
+      return viInt(ws.join(' '));
+    }
+    // decimal: "sáu mươi phẩy năm" / "60,5" / "60.5"
+    var parts = s.split(/\s*(?:phẩy|chấm|,|\.)\s*/i);
+    var a = viInt(parts[0] || ''), b = parts[1] ? viInt(parts[1]) : '';
+    if (a === '') return '';
+    return b ? a + '.' + b : a;
+  }
+  window._viNumber = viNumber; // để kiểm thử
+
+  // =================== KIỂM TRA & LƯU ===================
+  function validate(d){
+    var errs = [], bad = [];
+    FIELDS.forEach(function(f){ $(f).classList.remove('invalid'); });
+    if (!d.hoTen) { errs.push('Chưa nhập Họ tên'); bad.push('hoTen'); }
+    var y = new Date().getFullYear();
+    if (d.namSinh && (!/^\d{4}$/.test(d.namSinh) || +d.namSinh < 1900 || +d.namSinh > y)) { errs.push('Năm sinh không hợp lệ'); bad.push('namSinh'); }
+    if (d.soDienThoai && !/^(\+84|0)\d{9,10}$/.test(d.soDienThoai.replace(/[\s.]/g,''))) { errs.push('Số điện thoại không hợp lệ'); bad.push('soDienThoai'); }
+    if (d.canNang && (isNaN(+d.canNang.replace(',','.')) || +d.canNang.replace(',','.') <= 0 || +d.canNang.replace(',','.') > 300)) { errs.push('Cân nặng không hợp lệ'); bad.push('canNang'); }
+    if (d.soNgay && (!/^\d+$/.test(d.soNgay) || +d.soNgay < 1 || +d.soNgay > 365)) { errs.push('Số ngày đơn thuốc không hợp lệ'); bad.push('soNgay'); }
+    bad.forEach(function(f){ $(f).classList.add('invalid'); });
+    if (bad.length) $(bad[0]).focus();
+    return errs;
+  }
+
+  function collect(){
+    var d = {};
+    FIELDS.forEach(function(f){ d[f] = $(f).value.trim(); });
+    d.hoTen = d.hoTen.toUpperCase();
+    d.canNang = d.canNang.replace(',', '.');
+    return d;
+  }
+
+  function resetForm(){
+    stopVoice();
+    $('form').reset();
+    FIELDS.forEach(function(f){ $(f).classList.remove('invalid'); });
+    window.scrollTo(0, 0);
+  }
+
+  $('btnReset').onclick = function(){
+    if (FIELDS.some(function(f){ return $(f).value.trim(); }) && !confirm('Xóa dữ liệu đang nhập để nhập bệnh nhân mới?')) return;
+    resetForm();
+  };
+
+  $('btnSave').onclick = function(){
+    var b = this;
+    stopVoice();
+    var url = $('sheetUrl').value.trim();
+    if (!url) { settingsVisible(true); toast('Hãy dán link Google Sheet trước khi lưu.', true); $('sheetUrl').focus(); return; }
+    if (requirePin && !$('pin').value) { settingsVisible(true); toast('Hãy nhập mã truy cập.', true); $('pin').focus(); return; }
+    var d = collect();
+    var errs = validate(d);
+    if (errs.length) { toast(errs.join(' • '), true); return; }
+    b.disabled = true; b.textContent = 'Đang lưu...';
+    call('saveRecord', { sheetUrl: url, pin: $('pin').value, data: d }).then(function(r){
+      toast('✓ Đã lưu bệnh nhân ' + d.hoTen + ' (dòng ' + r.row + ')');
+      resetForm();
+    }).catch(function(e){
+      toast('Lưu thất bại: ' + e.message, true);
+    }).then(function(){ b.disabled = false; b.textContent = 'Lưu vào Google Sheet'; });
+  };
+
+  // =================== MÃ QR ===================
+  function appLink(){ return location.origin + location.pathname; }
+  function qrLink(){
+    var s = $('sheetUrl').value.trim();
+    var m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return appLink() + ($('qrWithSheet').checked && m ? '?sheet=' + m[1] : '');
+  }
+  function renderQr(){
+    var link = qrLink();
+    $('qrUrl').textContent = link;
+    if (!/^https:/.test(link)) { $('qrImg').removeAttribute('src'); $('qrUrl').textContent = 'Trang phải chạy trên https (GitHub Pages) mới tạo được mã QR. Link hiện tại: ' + link; return; }
+    if (typeof qrcode === 'undefined') { $('qrUrl').textContent = 'Không tải được thư viện QR (kiểm tra mạng). Link: ' + link; return; }
+    var q = qrcode(0, 'M'); q.addData(link); q.make();
+    $('qrImg').src = q.createDataURL(8, 16);
+  }
+  $('btnQr').onclick = function(){
+    var hasSheet = /\/spreadsheets\/d\//.test($('sheetUrl').value);
+    $('qrWithSheet').disabled = !hasSheet;
+    if (!hasSheet) $('qrWithSheet').checked = false;
+    renderQr(); $('qrModal').classList.remove('hidden');
+  };
+  $('qrWithSheet').onchange = renderQr;
+  $('btnQrClose').onclick = function(){ $('qrModal').classList.add('hidden'); };
+  $('qrModal').onclick = function(e){ if (e.target === this) this.classList.add('hidden'); };
+  $('btnQrPrint').onclick = function(){ window.print(); };
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') $('qrModal').classList.add('hidden'); });
+})();
+</script>
+</body>
+</html>
