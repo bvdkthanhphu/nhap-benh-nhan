@@ -310,10 +310,17 @@
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var MIC_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>';
   var rec = null, recBtn = null;
+  var UA = navigator.userAgent || '';
+  var IS_IOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var IOS_NOT_SAFARI = IS_IOS && /CriOS|FxiOS|EdgiOS|Zalo|FBAN|FBAV|Instagram|Line\//i.test(UA);
 
-  if (!SR) {
+  if (!SR || IOS_NOT_SAFARI) {
     document.body.classList.add('no-voice');
-    $('voiceNote').textContent = '🎤 Trình duyệt này chưa hỗ trợ nhập giọng nói. Hãy dùng Chrome (Android/máy tính) hoặc Safari (iPhone), hoặc bấm micro trên bàn phím điện thoại.';
+    $('voiceNote').textContent = IS_IOS
+      ? '🎤 Trên iPhone, nhập giọng nói chỉ chạy trong Safari. Hãy bấm ⋯ / "Mở bằng Safari", hoặc dùng micro 🎤 trên bàn phím iPhone.'
+      : '🎤 Trình duyệt này chưa hỗ trợ nhập giọng nói. Hãy dùng Chrome (Android/máy tính) hoặc Safari (iPhone), hoặc bấm micro trên bàn phím điện thoại.';
+  } else if (IS_IOS) {
+    $('voiceNote').textContent = '🎤 Bấm micro cạnh ô rồi nói, ngừng nói khoảng 2 giây là tự dừng. Nếu không chạy: Cài đặt → Cài đặt chung → Bàn phím → bật "Đọc chính tả".';
   }
 
   Array.prototype.forEach.call(document.querySelectorAll('.vf'), function(w){
@@ -331,34 +338,45 @@
     if (rec) { var same = recBtn === btn; stopVoice(); if (same) return; }
     var r = new SR();
     r.lang = 'vi-VN'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
-    var base = el.value.trim(), finalText = '';
-    rec = r; recBtn = btn; btn.classList.add('on'); el.focus();
+    var base = el.value.trim(), heard = '', silence = null, maxT = null;
+    rec = r; recBtn = btn; btn.classList.add('on');
+    // Không focus vào ô: trên iPhone bàn phím bật lên có thể làm ngắt micro
+    if (!IS_IOS) el.focus();
+
+    function armSilence(ms){ clearTimeout(silence); silence = setTimeout(function(){ try { r.stop(); } catch(e){} }, ms); }
 
     r.onresult = function(ev){
-      var interim = '';
-      for (var i = ev.resultIndex; i < ev.results.length; i++) {
-        var t = ev.results[i][0].transcript;
-        if (ev.results[i].isFinal) finalText += t; else interim += t;
-      }
-      // Ô chữ: hiện chữ ngay khi đang nói (nối tiếp nội dung cũ)
-      if (!numMode) el.value = joinText(base, (finalText + ' ' + interim).trim());
+      // Ghép lại TOÀN BỘ kết quả mỗi lần (Safari iPhone hay trả kết quả cộng dồn
+      // và không đánh dấu isFinal → không dùng resultIndex/isFinal)
+      var all = '';
+      for (var i = 0; i < ev.results.length; i++) all += ev.results[i][0].transcript + ' ';
+      heard = all.replace(/\s+/g, ' ').trim();
+      // Hiện ngay khi đang nói (ô số hiện chữ tạm, dừng nói sẽ đổi thành số)
+      el.value = joinText(base, heard);
+      armSilence(IS_IOS ? 1800 : 2500); // ngừng nói ~2 giây → tự dừng
     };
     r.onerror = function(ev){
-      var m = { 'not-allowed': 'Chưa cho phép dùng micro. Hãy bấm biểu tượng 🔒 cạnh địa chỉ web → cho phép Micro.',
-                'service-not-allowed': 'Trình duyệt không cho phép nhận dạng giọng nói trên trang này.',
+      var m = { 'not-allowed': IS_IOS
+                  ? 'Chưa cho phép micro. iPhone: Cài đặt → Safari → Micrô → Cho phép; và bấm "aA" trên thanh địa chỉ → Cài đặt trang web → Micrô → Cho phép.'
+                  : 'Chưa cho phép dùng micro. Hãy bấm biểu tượng 🔒 cạnh địa chỉ web → cho phép Micro.',
+                'service-not-allowed': IS_IOS
+                  ? 'iPhone chưa bật nhận dạng giọng nói: Cài đặt → Cài đặt chung → Bàn phím → bật "Bật Đọc chính tả" (và bật Siri).'
+                  : 'Trình duyệt không cho phép nhận dạng giọng nói trên trang này.',
                 'no-speech': 'Không nghe thấy tiếng nói, hãy thử lại.',
                 'audio-capture': 'Không tìm thấy micro trên thiết bị.',
                 'network': 'Nhận dạng giọng nói cần kết nối mạng.' }[ev.error];
       if (m) toast(m, true);
     };
+    maxT = setTimeout(function(){ try { r.stop(); } catch(e){} }, 20000); // tối đa 20 giây mỗi lần
     r.onend = function(){
+      clearTimeout(silence); clearTimeout(maxT);
       btn.classList.remove('on');
       if (rec === r) { rec = null; recBtn = null; }
-      var said = finalText.trim();
-      if (!said) return;
+      var said = heard.trim();
+      if (!said) { el.value = base; return; }
       if (numMode) {
         var v = viNumber(said, numMode);
-        if (v === '') toast('Không nhận ra số trong: "' + said + '"', true);
+        if (v === '') { el.value = base; toast('Không nhận ra số trong: "' + said + '"', true); }
         else { el.value = v; el.classList.remove('invalid'); }
       } else {
         el.value = joinText(base, said);
