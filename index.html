@@ -8,9 +8,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <title>Nhập thông tin bệnh nhân</title>
 <script>
-  /* ====== CẤU HÌNH: dán link Apps Script (/exec) vào đây trước khi đưa lên GitHub Pages ====== */
-  var API_URL = '';
-  /* ========================================================================================== */
+  /* ====== CẤU HÌNH CỐ ĐỊNH: dán 2 link vào giữa 2 dấu nháy ' ' rồi đưa lên GitHub ======
+     Điền đủ 2 link → người nhập liệu mở ra là nhập được ngay, không phải cấu hình gì. */
+  var API_URL   = 'https://script.google.com/macros/s/AKfycbyMa1kl8VV2GGAyJixUU3THu6z1HTndRI9Zrd22F-i48hfKW1pnAF76xMiuc075cNaN/exec';   // Link Apps Script, dạng https://script.google.com/macros/s/.../exec
+  var SHEET_URL = 'https://docs.google.com/spreadsheets/d/14U_J9JkpRQVsLdf3FIwqlqwMZaWfQpFIfpC-bizeXm0/edit?usp=sharing';   // Link Google Sheet, dạng https://docs.google.com/spreadsheets/d/.../edit
+  /* ===================================================================================== */
 </script>
 <style>
   :root{
@@ -117,7 +119,7 @@
         <input id="apiUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
         <div class="hint">Lấy ở Apps Script → Triển khai → Quản lý triển khai. Có thể ghi cố định vào biến API_URL trong file để khỏi nhập.</div>
       </div>
-      <div class="c12">
+      <div class="c12" id="sheetWrap">
         <label for="sheetUrl">Link Google Sheet <span class="req">*</span></label>
         <input id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/..." autocomplete="off">
         <div class="hint">Sheet phải được chia sẻ quyền <b>Người chỉnh sửa</b> cho tài khoản chạy Apps Script.</div>
@@ -216,9 +218,23 @@
     }
   } catch(e){}
 
-  function getApi(){ return API_URL || $('apiUrl').value.trim(); }
+  // Lấy đúng 1 link /exec kể cả khi lỡ dán 2 lần hoặc dính khoảng trắng/tham số
+  function cleanExec(s){
+    var m = String(s || '').match(/https:\/\/script\.google\.com\/(?:a\/[^\/\s]+\/)?macros\/s\/[A-Za-z0-9_-]+\/exec/g);
+    return m ? m[m.length - 1] : String(s || '').trim();
+  }
+  function getApi(){ return cleanExec(API_URL || $('apiUrl').value); }
+
+  // Link Sheet ghi cố định trong file → luôn dùng link này, ẩn ô nhập
+  var FIXED = !!(API_URL && SHEET_URL);
+  if (SHEET_URL) {
+    $('sheetUrl').value = SHEET_URL.trim();
+    $('sheetWrap').classList.add('hidden');
+  }
   function settingsVisible(show){ $('settingsCard').classList.toggle('hidden', !show); }
   settingsVisible(!$('sheetUrl').value || !getApi());
+  // Đã cố định đủ 2 link: ẩn nút Cấu hình (chỉ hiện lại nếu Apps Script yêu cầu mã truy cập)
+  if (FIXED) $('btnToggleSettings').classList.add('hidden');
   $('btnToggleSettings').onclick = function(){ settingsVisible($('settingsCard').classList.contains('hidden')); };
 
   function toast(msg, isErr){
@@ -255,7 +271,8 @@
   }
 
   function saveSettings(){
-    store('bn_apiUrl', $('apiUrl').value.trim());
+    $('apiUrl').value = cleanExec($('apiUrl').value);
+    store('bn_apiUrl', $('apiUrl').value);
     store('bn_sheetUrl', $('sheetUrl').value.trim());
     sstore('bn_pin', $('pin').value);
   }
@@ -265,6 +282,7 @@
     call('getConfig').then(function(cfg){
       requirePin = cfg.requirePin;
       $('pinWrap').classList.toggle('hidden', !requirePin);
+      if (requirePin) $('btnToggleSettings').classList.remove('hidden');
       if (requirePin && !$('pin').value) settingsVisible(true);
     }).catch(function(){});
   }
